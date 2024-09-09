@@ -50,6 +50,40 @@ class GMVAE(nn.Module):
         # this object by checking its shape.
         prior = ut.gaussian_parameters(self.z_pre, dim=1)
 
+        m_mixture, v_mixture = prior
+        qm, qv = self.enc(x)
+        # print(f'----------------- x')
+        # print(x.size()) # torch.Size([97, 784])
+        # print(f'----------------- m_mixture')
+        # print(m_mixture.size()) # torch.Size([1, 500, 10])
+        # print(f'----------------- v_mixture')
+        # print(v_mixture.size()) # torch.Size([1, 500, 10])
+        # print(f'----------------- qm')
+        # print(qm.size()) # torch.Size([97, 10])
+        # print(f'----------------- qv')
+        # print(qv.size()) # torch.Size([97, 10])
+
+        m_mixture = m_mixture.expand(qm.size()[0], *m_mixture.size()[1:])
+        v_mixture = v_mixture.expand(qv.size()[0], *v_mixture.size()[1:])
+        z = ut.sample_gaussian(qm, qv)
+
+        # print(f'----------------- m_mixture')
+        # print(m_mixture.size()) # torch.Size([97, 500, 10])
+        # print(f'----------------- v_mixture')
+        # print(v_mixture.size()) # torch.Size([97, 500, 10])
+        # print(f'----------------- z')
+        # print(z.size()) # torch.Size([97, 10])
+
+
+        kl_mat = ut.log_normal(z, qm, qv) - \
+                 ut.log_normal_mixture(z, m_mixture, v_mixture)
+        # print(f'----------------- kl_mat')
+        # print(kl_mat.size()) # torch.Size([97])
+        kl = torch.mean(kl_mat)
+        x_logits = self.dec(z)
+        rec = torch.mean(-ut.log_bernoulli_with_logits(x, x_logits))
+        nelbo = rec + kl
+
         ################################################################################
         # End of code modification
         ################################################################################
