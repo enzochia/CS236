@@ -3,6 +3,9 @@
 *.data
 *.pt
 *.bin
+*.idea
+.DS_Store
+*/data/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
