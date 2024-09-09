@@ -67,6 +67,7 @@ def log_normal(x, m, v):
     # Compute element-wise log probability of normal and remember to sum over
     # the last dimension
     ################################################################################
+    # why this does not work
     # log_probs = torch.distributions.normal.Normal(m, v).log_prob(x)
     log_probs = -((x - m) ** 2) / (2 * v) - 0.5 * np.log(2 * np.pi) - \
                 torch.log(torch.sqrt(v))
