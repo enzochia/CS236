@@ -74,6 +74,24 @@ class VAE(nn.Module):
         #
         # Outputs should all be scalar
         ################################################################################
+        qm, qv = self.enc(x)
+        qm = ut.duplicate(qm, iw)
+        qv = ut.duplicate(qv, iw)
+        z_prior_m_expanded = self.z_prior_m.expand(qm.size())
+        z_prior_v_expanded = self.z_prior_v.expand(qv.size())
+        kl = torch.mean(ut.kl_normal(qm, qv, z_prior_m_expanded,
+                                     z_prior_v_expanded))
+        # batch * iw by z_dim
+        z = ut.sample_gaussian(qm, qv)
+        x_logits = self.dec(z)
+        x = ut.duplicate(x, iw)
+        rec = torch.mean(-ut.log_bernoulli_with_logits(x, x_logits))
+
+        log_exponent_mat = ut.log_normal(z, z_prior_m_expanded,
+                                         z_prior_v_expanded) + \
+            rec - ut.log_normal(z, qm, qv)
+        log_exponent_mat.reshape(-1, iw).transpose(0, 1)
+        niwae = ut.log_mean_exp(log_exponent_mat, dim=0).sum()
 
         ################################################################################
         # End of code modification
