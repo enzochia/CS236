@@ -27,6 +27,7 @@ class SSVAE(nn.Module):
         self.z_prior_m = torch.nn.Parameter(torch.zeros(1), requires_grad=False)
         self.z_prior_v = torch.nn.Parameter(torch.ones(1), requires_grad=False)
         self.z_prior = (self.z_prior_m, self.z_prior_v)
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
 
     def negative_elbo_bound(self, x):
         """
@@ -60,6 +61,31 @@ class SSVAE(nn.Module):
         y = np.repeat(np.arange(self.y_dim), x.size(0))
         y = x.new(np.eye(self.y_dim)[y])
         x = ut.duplicate(x, self.y_dim)
+
+        y_prior = torch.tensor([0.1]).expand_as(y_prob).to(self.device)
+        y_prior_log = torch.log(y_prior)
+        kl_y = ut.kl_cat(y_prob, y_logprob, y_prior_log).mean()
+
+        z_qm, z_qv = self.enc(x, y)
+        z_pm = self.z_prior_m.expand_as(z_qm)
+        z_pv = self.z_prior_v.expand_as(z_qv)
+        # print(f'---------------z_qm shape: {z_qm.size()}')
+        # print(f'---------------z_qv shape: {z_qv.size()}')
+        # print(f'---------------z_pm shape: {z_pm.size()}')
+        # print(f'---------------z_pv shape: {z_pv.size()}')
+        # print(f'---------------kl_normal shape: {ut.kl_normal(z_qm, z_qv, z_pm, z_pv).size()}')
+        # ut.kl_normal(z_qm, z_qv, z_pm, z_pv).size()
+        kl_z_mat = ut.kl_normal(z_qm, z_qv, z_pm,
+                                z_pv).reshape(self.y_dim,-1).t()
+        kl_z = (kl_z_mat * y_prob).sum(-1).mean()
+
+        z = ut.sample_gaussian(z_qm, z_qv)
+        x_logits = self.dec(z, y)
+        rec_vec = -ut.log_bernoulli_with_logits(x, x_logits)
+        rec_mat = rec_vec.reshape(self.y_dim, -1).t()
+        rec = (rec_mat * y_prob).sum(-1).mean()
+
+        nelbo = kl_y + kl_z + rec
 
         ################################################################################
         # End of code modification
