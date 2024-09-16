@@ -28,7 +28,7 @@ model_name = '_'.join([t.format(v) for (t, v) in layout])
 pprint(vars(args))
 print('Model name:', model_name)
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
 train_loader, labeled_subset, test_set = ut.get_mnist_data(device, use_test_subset=False)
 ssvae = SSVAE(gen_weight=args.gw,
               class_weight=args.cw,
